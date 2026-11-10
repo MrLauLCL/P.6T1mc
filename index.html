@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>小六數學極速連線大比拼</title>
+  <!-- 引入 Firebase (Compat 版本，方便單一檔案直接運作) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --primary: #4F46E5;
+      --primary-hover: #4338CA;
+      --secondary: #10B981;
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --bg: #F3F4F6;
+      --card: #FFFFFF;
+      --text: #1F2937;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      touch-action: manipulation; /* 禁用 iPad 雙擊放大 */
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang HK", "Microsoft JhengHei", sans-serif;
+    }
+    body {
+      background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+    .container {
+      width: 100%;
+      max-width: 1050px;
+      background: var(--card);
+      border-radius: 24px;
+      box-shadow: 0 12px 32px rgba(79, 70, 229, 0.12);
+      padding: 28px;
+      margin-top: 10px;
+    }
+    h1 {
+      font-size: 2.2rem;
+      color: var(--primary);
+      text-align: center;
+      margin-bottom: 12px;
+      font-weight: 800;
+    }
+    h2 {
+      font-size: 1.5rem;
+      margin-bottom: 16px;
+      color: #374151;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 28px;
+      font-size: 1.35rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: transform 0.1s, background-color 0.2s, box-shadow 0.2s;
+      color: white;
+      background: var(--primary);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    }
+    .btn:active {
+      transform: scale(0.96);
+    }
+    .btn:disabled {
+      background: #9CA3AF !important;
+      box-shadow: none !important;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-success { background: var(--secondary); box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); }
+    .btn-danger { background: var(--danger); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
+    .btn-warning { background: var(--warning); box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25); }
+    .btn-outline {
+      background: #F9FAFB;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      box-shadow: none;
+    }
+    /* 角色選擇 */
+    .role-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 28px;
+    }
+    .role-card {
+      background: #F8FAFC;
+      border: 3px solid #E2E8F0;
+      border-radius: 20px;
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .role-card:hover, .role-card:active {
+      border-color: var(--primary);
+      background: #EEF2FF;
+      transform: translateY(-4px);
+    }
+    .role-icon {
+      font-size: 4.2rem;
+      margin-bottom: 14px;
+    }
+    /* 題目類型選擇器 */
+    .topic-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .topic-item {
+      background: #F3F4F6;
+      border: 2px solid #D1D5DB;
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .topic-item.selected {
+      background: #EEF2FF;
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .topic-item input {
+      width: 22px;
+      height: 22px;
+      accent-color: var(--primary);
+    }
+    /* 老師大螢幕頂部資訊 */
+    .teacher-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      background: #1E1B4B;
+      color: white;
+      padding: 20px 28px;
+      border-radius: 18px;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+    .room-code-box {
+      font-size: 1.3rem;
+    }
+    .room-code-num {
+      font-size: 3rem;
+      font-weight: 900;
+      color: #FBBF24;
+      letter-spacing: 5px;
+      margin-left: 8px;
+    }
+    .timer-box {
+      font-size: 3rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      background: rgba(255,255,255,0.12);
+      padding: 8px 24px;
+      border-radius: 14px;
+      color: #34D399;
+    }
+    .timer-box.urgent {
+      color: #F87171;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+    /* 排行榜與學生名單 */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 24px;
+    }
+    @media (max-width: 768px) {
+      .dashboard-grid, .role-grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: #F9FAFB;
+      border-radius: 18px;
+      padding: 20px;
+      border: 1px solid #E5E7EB;
+    }
+    .student-tag {
+      display: inline-block;
+      background: #E0E7FF;
+      color: #3730A3;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-weight: 700;
+      margin: 5px;
+      font-size: 1.1rem;
+    }
+    .leaderboard-list {
+      list-style: none;
+    }
+    .leaderboard-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: white;
+      padding: 14px 20px;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+      font-size: 1.35rem;
+      font-weight: 700;
+      transition: transform 0.2s;
+    }
+    .rank-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      margin-right: 14px;
+      background: #E5E7EB;
+      color: #374151;
+    }
+    .rank-1 .rank-badge { background: #FEF08A; color: #CA8A04; font-size: 1.4rem; }
+    .rank-2 .rank-badge { background: #E2E8F0; color: #475569; font-size: 1.3rem; }
+    .rank-3 .rank-badge { background: #FED7AA; color: #C2410C; font-size: 1.2rem; }
+    .score-pill {
+      background: #ECFDF5;
+      color: #059669;
+      padding: 6px 18px;
+      border-radius: 999px;
+      font-weight: 900;
+      font-size: 1.4rem;
+    }
+    /* 學生輸入與答題介面 */
+    .input-group {
+      margin-bottom: 20px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .input-box {
+      width: 100%;
+      padding: 18px;
+      font-size: 1.6rem;
+      border: 3px solid #D1D5DB;
+      border-radius: 16px;
+      text-align: center;
+      font-weight: 700;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .input-box:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .student-statusbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #EEF2FF;
+      padding: 16px 22px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+      font-size: 1.35rem;
+      font-weight: 800;
+    }
+    .question-card {
+      background: #FFFBEB;
+      border: 3px solid #FDE68A;
+      border-radius: 22px;
+      padding: 28px 24px;
+      margin-bottom: 24px;
+      text-align: center;
+      min-height: 170px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .question-category {
+      display: inline-block;
+      background: #F59E0B;
+      color: white;
+      font-size: 1.05rem;
+      font-weight: 800;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    .question-text {
+      font-size: 1.95rem;
+      font-weight: 800;
+      line-height: 1.45;
+      color: #111827;
+    }
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 600px) {
+      .options-grid { grid-template-columns: 1fr; }
+      .question-text { font-size: 1.6rem; }
+    }
+    .option-btn {
+      background: #FFFFFF;
+      border: 4px solid #CBD5E1;
+      border-radius: 20px;
+      padding: 24px 16px;
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #1E293B;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #CBD5E1;
+      transition: all 0.1s;
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .option-btn:active:not(:disabled) {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #CBD5E1;
+    }
+    .option-btn.correct {
+      background: #10B981 !important;
+      border-color: #059669 !important;
+      color: white !important;
+      box-shadow: 0 6px 0 #059669 !important;
+    }
+    .option-btn.wrong {
+      background: #EF4444 !important;
+      border-color: #DC2626 !important;
+      color: white !important;
+      box-shadow: 0 6px 0 #DC2626 !important;
+    }
+    /* 標準數學上下分數顯示 */
+    .frac {
+      display: inline-flex;
+      flex-direction: column;
+      vertical-align: middle;
+      text-align: center;
+      font-size: 0.9em;
+      margin: 0 4px;
+      line-height: 1.1;
+    }
+    .frac > span:first-child {
+      border-bottom: 2.5px solid currentColor;
+      padding: 0 5px 2px 5px;
+    }
+    .frac > span:last-child {
+      padding: 2px 5px 0 5px;
+    }
+    .feedback-banner {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 14px;
+      font-size: 1.45rem;
+      font-weight: 800;
+      text-align: center;
+    }
+    .feedback-penalty {
+      background: #FEE2E2;
+      color: #B91C1C;
+      border: 2px solid #EF4444;
+    }
+    .feedback-correct {
+      background: #D1FAE5;
+      color: #065F46;
+      border: 2px solid #10B981;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- 1. 首頁：選擇角色 -->
+    <div id="view-home">
+      <h1>🏆 小六數學極速連線大比拼</h1>
+      <p style="text-align:center; font-size:1.2rem; color:#4B5563;">支援全班 iPad 即時同步作答 ‧ 聖公會仁立小學及現代數學題庫</p>
+      <div class="role-grid">
+        <div class="role-card" onclick="enterTeacherSetup()">
+          <div class="role-icon">👨‍🏫</div>
+          <h2>老師大螢幕端（控制台）</h2>
+          <p style="color:#6B7280; font-size:1.1rem;">選擇課題、建立房間、控制比賽時間及投影即時排行榜</p>
+        </div>
+        <div class="role-card" onclick="enterStudentJoin()">
+          <div class="role-icon">📱</div>
+          <h2>學生 iPad 端（參賽者）</h2>
+          <p style="color:#6B7280; font-size:1.1rem;">輸入 4 位數房間號碼及姓名，即時挑戰數學題</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 老師端：選擇課題與開啟房間 -->
+    <div id="view-teacher-setup" class="hidden">
+      <h1>👨‍🏫 老師控制台 - 選擇比賽課題</h1>
+      <p style="margin-bottom:16px; font-size:1.15rem; color:#4B5563;">請勾選今堂比賽要包含的題目類型（可單選或多選混合）：</p>
+      
+      <div style="margin-bottom: 14px; display:flex; gap:12px;">
+        <button class="btn btn-outline" style="padding:10px 18px; font-size:1.1rem;" onclick="toggleAllTopics(true)">✅ 全選所有課題（混合題庫）</button>
+        <button class="btn btn-outline" style="padding:10px 18px; font-size:1.1rem;" onclick="toggleAllTopics(false)">❌ 全部取消</button>
+      </div>
+
+      <div class="topic-grid" id="topic-checkboxes"></div>
+
+      <div style="text-align:center; margin-top:24px; display:flex; justify-content:center; gap:16px;">
+        <button class="btn btn-outline" onclick="location.reload()">返回首頁</button>
+        <button class="btn btn-success" onclick="createRoom()">🚀 開啟比賽房間</button>
+      </div>
+    </div>
+
+    <!-- 3. 老師端：大螢幕房間與排行榜 -->
+    <div id="view-teacher-room" class="hidden">
+      <div class="teacher-header">
+        <div class="room-code-box">
+          房間號碼：<span class="room-code-num" id="t-room-code">----</span>
+        </div>
+        <div class="timer-box" id="t-timer">05:00</div>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <button class="btn btn-success" id="btn-start-game" onclick="startGame()">▶️ 開始比賽</button>
+          <button class="btn btn-warning" id="btn-restart-game" onclick="restartGame()">🔄 重新開始（洗牌重賽）</button>
+          <button class="btn btn-danger" onclick="changeTopicsModal()">📚 更換課題</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px; font-size:1.1rem; color:#4B5563;">
+        <strong>已選課題：</strong><span id="t-selected-topics"></span> （共 <span id="t-question-count">0</span> 題，全班題目順序相同）
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="panel">
+          <h2>👥 連線學生名單 (<span id="t-student-count">0</span> 人)</h2>
+          <div id="t-student-list" style="margin-top:12px; min-height:120px;">
+            <p style="color:#9CA3AF;">等待學生使用 iPad 輸入房間號碼加入...</p>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>🏅 即時全班動態排行榜</h2>
+          <ul class="leaderboard-list" id="t-leaderboard" style="margin-top:12px;">
+            <li style="color:#9CA3AF; text-align:center; padding:24px;">暫無分數紀錄</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 學生端：輸入房號與姓名 -->
+    <div id="view-student-join" class="hidden" style="max-width: 520px; margin: 0 auto;">
+      <h1>📱 加入數學連線比賽</h1>
+      <div class="input-group" style="margin-top:24px;">
+        <label>1. 輸入 4 位數房間號碼</label>
+        <input type="tel" id="s-input-code" class="input-box" placeholder="例如：1234" maxlength="4">
+      </div>
+      <div class="input-group">
+        <label>2. 輸入你的姓名或學號</label>
+        <input type="text" id="s-input-name" class="input-box" placeholder="例如：6A 陳大文" maxlength="15">
+      </div>
+      <div style="display:flex; gap:12px; margin-top:28px;">
+        <button class="btn btn-outline" style="flex:1;" onclick="location.reload()">返回</button>
+        <button class="btn btn-success" style="flex:2;" onclick="joinRoom()">進入房間 🚀</button>
+      </div>
+    </div>
+
+    <!-- 5. 學生端：等待老師開始 -->
+    <div id="view-student-wait" class="hidden" style="text-align:center; padding:40px 16px;">
+      <div style="font-size:4.5rem; margin-bottom:16px;">⏳</div>
+      <h1>成功連線！請準備</h1>
+      <p style="font-size:1.5rem; font-weight:700; color:var(--primary); margin:14px 0;">
+        學生：<span id="s-wait-name"></span> ｜ 房號：<span id="s-wait-code"></span>
+      </p>
+      <p style="font-size:1.3rem; color:#4B5563;">請望向課室大螢幕，等待老師按下「開始比賽」...</p>
+    </div>
+
+    <!-- 6. 學生端：答題畫面 -->
+    <div id="view-student-game" class="hidden">
+      <div class="student-statusbar">
+        <div>👤 <span id="s-game-name"></span></div>
+        <div>⏱️ <span id="s-game-timer">05:00</span></div>
+        <div>⭐ 分數：<span id="s-game-score" style="color:var(--primary); font-size:1.65rem;">0</span></div>
+      </div>
+
+      <div style="text-align:right; font-weight:700; color:#6B7280; margin-bottom:8px; font-size:1.15rem;">
+        進度：第 <span id="s-q-index">1</span> / <span id="s-q-total">0</span> 題
+      </div>
+
+      <div class="question-card">
+        <span class="question-category" id="s-q-cat">課題</span>
+        <div class="question-text" id="s-q-text">題目載入中...</div>
+      </div>
+
+      <div class="options-grid" id="s-options-grid"></div>
+
+      <div id="s-feedback" class="feedback-banner hidden"></div>
+    </div>
+
+    <!-- 7. 學生端：完賽或時間到畫面 -->
+    <div id="view-student-end" class="hidden" style="text-align:center; padding:40px 16px;">
+      <div style="font-size:4.8rem; margin-bottom:16px;">🎉</div>
+      <h1 id="s-end-title">比賽結束！</h1>
+      <p style="font-size:1.6rem; font-weight:800; margin:20px 0;">
+        你的最終得分：<span id="s-end-score" style="font-size:2.8rem; color:var(--secondary);">0</span> 分
+      </p>
+      <p style="font-size:1.3rem; color:#4B5563;">請望向老師大螢幕查看全班排行榜名次！</p>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. Firebase 初始化設定
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCyaJ-d-_X1j259pyRKmFDhmwQe_W-7lBI",
+      authDomain: "p6matht1mc.firebaseapp.com",
+      databaseURL: "https://p6matht1mc-default-rtdb.firebaseio.com",
+      projectId: "p6matht1mc",
+      storageBucket: "p6matht1mc.firebasestorage.app",
+      messagingSenderId: "339993933625",
+      appId: "1:339993933625:web:6b04ef48d4434d3a85dae8",
+      measurementId: "G-ZE7SVPEBSQ"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ==========================================
+    // 2. 輔助函數：渲染標準上下分數 HTML
+    // ==========================================
+    function f(whole, num, den) {
+      if (whole === '' || whole === null || whole === undefined) {
+        return `<span class="frac"><span>${num}</span><span>${den}</span></span>`;
+      }
+      return `${whole}<span class="frac"><span>${num}</span><span>${den}</span></span>`;
+    }
+
+    // ==========================================
+    // 3. 題庫（完整提取自上傳之工作紙、評估卷及習作簿，共 8 大課題）
+    //    每題包含：1個正確答案 (ans)、1個相似誘答 (sim)、2個完全不同答案 (diff1, diff2)
+    // ==========================================
+    const ALL_TOPICS = [
+      "小數除法",
+      "小數四則運算",
+      "小數和分數互化",
+      "平均數",
+      "百分數和分數互化",
+      "百分數和小數互化",
+      "容量和體積",
+      "不規則立體體積"
+    ];
+
+    const QUESTION_BANK = [
+      // 【1. 小數除法】
+      { cat: "小數除法", q: "計算 4 ÷ 3.5 = ？（答案取至百分位）", ans: "1.14", sim: "1.15", diff1: "0.88", diff2: "11.4" },
+      { cat: "小數除法", q: "計算 5.24 ÷ 2.4 = ？（答案取至小數點後兩個位）", ans: "2.18", sim: "2.19", diff1: "0.46", diff2: "12.58" },
+      { cat: "小數除法", q: "飲品半打（6瓶）售 $22.20，每瓶飲品的平均售價是多少？", ans: "3元7角", sim: "3元2角", diff1: "7元3角", diff2: "13元2角" },
+      { cat: "小數除法", q: "環保公司以 122 元購入了 30.5 公斤膠樽，平均每公斤膠樽值多少元？", ans: "4 元", sim: "4.2 元", diff1: "0.4 元", diff2: "40 元" },
+      { cat: "小數除法", q: "鉛筆每枝售 1.8 元，墨水筆每枝售 57.6 元，墨水筆的售價是鉛筆的多少倍？", ans: "32 倍", sim: "3.2 倍", diff1: "55.8 倍", diff2: "103 倍" },
+      { cat: "小數除法", q: "馬路全長 2.8 公里，工人平均每天維修 0.7 公里，完成維修工程需要多少天？", ans: "4 天", sim: "0.4 天", diff1: "1.96 天", diff2: "40 天" },
+      { cat: "小數除法", q: "媽媽給姊姊 10 元買雞蛋，每隻雞蛋售 6 角（0.6 元），最多可買雞蛋多少隻？應找回多少元？", ans: "16 隻，找回 0.4 元", sim: "16 隻，找回 4 元", diff1: "17 隻，找回 0.2 元", diff2: "6 隻，找回 0.4 元" },
+      { cat: "小數除法", q: "雄光每天節省零用錢 5.2 元來購買價值 91.5 元的戰艦模型，他最少要節省多少天？", ans: "18 天", sim: "17 天", diff1: "17.5 天", diff2: "45 天" },
+      { cat: "小數除法", q: "計算 9.36 ÷ 12 = ？", ans: "0.78", sim: "7.8", diff1: "1.28", diff2: "112.32" },
+      { cat: "小數除法", q: "計算 297 ÷ 18 = ？", ans: "16.5", sim: "1.65", diff1: "15.5", diff2: "279" },
+      { cat: "小數除法", q: "計算 62.43 ÷ 0.01 = ？", ans: "6243", sim: "624.3", diff1: "0.6243", diff2: "6.243" },
+      { cat: "小數除法", q: "把 1.8 升果汁倒入容量各是 0.25 升的杯子中，共可倒滿杯子多少個？餘下果汁多少升？", ans: "7 個，餘下 0.05 升", sim: "7 個，餘下 0.5 升", diff1: "8 個，餘下 0.05 升", diff2: "70 個，餘下 5 升" },
+
+      // 【2. 小數四則運算】
+      { cat: "小數四則運算", q: "計算 19.2 ÷ (6 + 0.4) = ？", ans: "3", sim: "3.2", diff1: "3.6", diff2: "122.88" },
+      { cat: "小數四則運算", q: "5 隻杯與 3 隻碟的價錢相等。如果每隻碟售 $45.50，每隻杯的售價是多少元？", ans: "$27.30", sim: "$27.50", diff1: "$75.80", diff2: "$136.50" },
+      { cat: "小數四則運算", q: "可口餅店曲奇 6 件售 $46.50，美味餅店每件售 $7.50。小芸在美味餅店買 6 件可節省多少元？", ans: "$1.50", sim: "$1.20", diff1: "$39.00", diff2: "$45.00" },
+      { cat: "小數四則運算", q: "市區的士首 2 公里收費 $15.00，以後每 0.2 公里收費 $1.40。慧敏坐的士行駛 7.6 公里，全程收費多少？", ans: "$54.20", sim: "$52.80", diff1: "$25.64", diff2: "$93.20" },
+      { cat: "小數四則運算", q: "姊姊和弟弟每週上課 5 天，每週車費共 110.5 元。姊姊每天車費是 12.6 元，弟弟每天車費是多少元？", ans: "9.5 元", sim: "9.8 元", diff1: "22.1 元", diff2: "47.5 元" },
+      { cat: "小數四則運算", q: "方包售 13.8 元，鮮奶售 5.7 元。卓基各買一件並全用五角（0.5 元）硬幣付款，共須付多少個硬幣？", ans: "39 個", sim: "38 個", diff1: "19.5 個", diff2: "98 個" },
+      { cat: "小數四則運算", q: "哥哥有 1.5 升牛奶，喝了 0.6 升後，把餘下的平均分為 5 杯，每杯牛奶有多少升？", ans: "0.18 升", sim: "0.15 升", diff1: "0.3 升", diff2: "0.9 升" },
+      { cat: "小數四則運算", q: "店員把 2.75 L 紅茶和 0.5 L 牛奶混合製成奶茶，每 0.25 L 倒進一個杯子，共可製成奶茶多少杯？", ans: "13 杯", sim: "12 杯", diff1: "3.25 杯", diff2: "130 杯" },
+      { cat: "小數四則運算", q: "鮮奶每盒售 $6.40，今天有「買 3 盒，多送 1 盒」優惠。在這優惠下，平均每盒鮮奶售多少元？", ans: "4.8 元", sim: "4.6 元", diff1: "1.6 元", diff2: "19.2 元" },
+      { cat: "小數四則運算", q: "計算 (1.96 + 3.2) ÷ 0.8 = ？", ans: "6.45", sim: "6.25", diff1: "5.96", diff2: "4.128" },
+      { cat: "小數四則運算", q: "計算 3.41 ÷ 0.2 + 3.12 × 5 = ？", ans: "32.65", sim: "31.65", diff1: "100.85", diff2: "17.05" },
+      { cat: "小數四則運算", q: "啟明買 3 枚 1 元 8 角和 1 枚 2 元 5 角的郵票，付 1 張 20 元紙幣，應找回多少元？", ans: "12.1 元", sim: "12.9 元", diff1: "7.9 元", diff2: "15.7 元" },
+
+      // 【3. 小數和分數互化】
+      { cat: "小數和分數互化", q: `把 ${f(1, 4, 9)} 化為小數。（答案取至小數點後兩個位）`, ans: "1.44", sim: "1.45", diff1: "0.44", diff2: "1.94" },
+      { cat: "小數和分數互化", q: `把 ${f('', 6, 11)} 化為小數。（答案取至小數點後兩個位）`, ans: "0.55", sim: "0.54", diff1: "0.61", diff2: "1.83" },
+      { cat: "小數和分數互化", q: "把 3.65 化為最簡帶分數。", ans: f(3, 13, 20), sim: f(3, 65, 100), diff1: f(3, 3, 5), diff2: f(36, 1, 2) },
+      { cat: "小數和分數互化", q: "把 0.48 化為最簡分數。", ans: f('', 12, 25), sim: f('', 24, 50), diff1: f('', 4, 8), diff2: f('', 12, 50) },
+      { cat: "小數和分數互化", q: "把 3.055 化為最簡帶分數。", ans: f(3, 11, 200), sim: f(3, 11, 20), diff1: f(3, 55, 100), diff2: f(30, 11, 200) },
+      { cat: "小數和分數互化", q: `把 ${f(20, 3, 5)} 化為小數。`, ans: "20.6", sim: "20.35", diff1: "2.06", diff2: "20.06" },
+      { cat: "小數和分數互化", q: `把 ${f(9, 5, 6)} 化為小數。（答案取至百分位）`, ans: "9.83", sim: "9.84", diff1: "9.56", diff2: "0.83" },
+      { cat: "小數和分數互化", q: "把 9.625 化為最簡帶分數。", ans: f(9, 5, 8), sim: f(9, 3, 8), diff1: f(9, 25, 40), diff2: f(9, 6, 25) },
+      { cat: "小數和分數互化", q: `把 ${f(4, 17, 250)} 化為小數。`, ans: "4.068", sim: "4.68", diff1: "4.17", diff2: "0.068" },
+      { cat: "小數和分數互化", q: "在 0.45 這個數中，數字「5」代表的數值以最簡分數表示是多少？", ans: f('', 1, 20), sim: f('', 5, 10), diff1: f('', 1, 2), diff2: f('', 1, 200) },
+
+      // 【4. 平均數】
+      { cat: "平均數", q: "升降機裏有 10 個乘客，共重 625 kg。每個乘客的平均重量是多少 kg？", ans: "62.5 kg", sim: "6.25 kg", diff1: "6250 kg", diff2: "60.5 kg" },
+      { cat: "平均數", q: "升降機原有 10 人共重 625 kg。後來 1 個 74 kg 的乘客離開，1 個 24 kg 的小童進入，現在平均每人重多少？", ans: "57.5 kg", sim: "67.5 kg", diff1: "62.5 kg", diff2: "50 kg" },
+      { cat: "平均數", q: "母親節 4 人套餐售 $590.00，惠顧 4 人套餐，每人平均消費多少元？", ans: "$147.50", sim: "$145.80", diff1: "$140.50", diff2: "$59.00" },
+      { cat: "平均數", q: "找出「32 , 44 , 108 , 0 , 52 , 70」這組數的平均數。", ans: "51", sim: "61.2", diff1: "306", diff2: "45" },
+      { cat: "平均數", q: "嘉美在過去四個月分別儲蓄了 56 元、48 元、59 元和 61 元。她平均每月儲蓄多少元？", ans: "56 元", sim: "55 元", diff1: "224 元", diff2: "48 元" },
+      { cat: "平均數", q: "志樂 5 次默書成績為 78、86、73、91 和 89 分。最低分一次不計，其餘 4 次的平均分是多少？", ans: "86 分", sim: "83.4 分", diff1: "344 分", diff2: "88 分" },
+      { cat: "平均數", q: "蘋果汁每杯 17 元、西柚汁 21 元、橙汁 15 元。媽媽買了 2 杯蘋果汁、4 杯西柚汁和 1 杯橙汁，平均每杯售多少元？", ans: "19 元", sim: "17.7 元", diff1: "22.2 元", diff2: "133 元" },
+      { cat: "平均數", q: "五人小隊的平均身高是 1.58 米，其中一人高 1.7 米，其餘四人的平均身高是多少米？", ans: "1.55 米", sim: "1.64 米", diff1: "1.58 米", diff2: "6.2 米" },
+      { cat: "平均數", q: "有 3 個數的平均數是 100，如果再加入一個數，4 個數的平均數變成 120。這個加入的數是甚麼？", ans: "180", sim: "110", diff1: "120", diff2: "480" },
+      { cat: "平均數", q: "已知 6 袋提子平均重 1.4 公斤。首三袋共重 3.6 公斤，第四及第五袋平均重 1.5 公斤。第六袋重多少公斤？", ans: "1.8 公斤", sim: "1.6 公斤", diff1: "3.3 公斤", diff2: "8.4 公斤" },
+
+      // 【5. 百分數和分數互化】
+      { cat: "百分數和分數互化", q: `把 ${f(1, 7, 40)} 化為百分數。`, ans: "117.5%", sim: "11.75%", diff1: "17.5%", diff2: "175%" },
+      { cat: "百分數和分數互化", q: `把 ${f(3, 7, 10)} 化為百分數。`, ans: "370%", sim: "37%", diff1: "3.7%", diff2: "307%" },
+      { cat: "百分數和分數互化", q: "把 0.15% 化為最簡分數。", ans: f('', 3, 2000), sim: f('', 3, 200), diff1: f('', 3, 20), diff2: f('', 15, 100) },
+      { cat: "百分數和分數互化", q: "把 95% 化為最簡分數。", ans: f('', 19, 20), sim: f('', 9, 10), diff1: f('', 19, 100), diff2: f(9, 1, 2) },
+      { cat: "百分數和分數互化", q: `把 ${f('', 5, 8)} 化為百分數。`, ans: "62.5%", sim: "6.25%", diff1: "58%", diff2: "85%" },
+      { cat: "百分數和分數互化", q: `把 ${f('', 3, 16)} 化為百分數。`, ans: "18.75%", sim: "1.875%", diff1: "31.6%", diff2: "16.3%" },
+      { cat: "百分數和分數互化", q: "把 180% 化為最簡帶分數。", ans: f(1, 4, 5), sim: f(1, 8, 10), diff1: f('', 9, 50), diff2: f(18, 1, 5) },
+      { cat: "百分數和分數互化", q: "把 0.5% 化為最簡分數。", ans: f('', 1, 200), sim: f('', 1, 20), diff1: f('', 1, 2), diff2: f('', 5, 100) },
+      { cat: "百分數和分數互化", q: "寶文買了一個薄餅，吃去五分之三，即吃了全個薄餅的百分之幾？", ans: "60%", sim: "6%", diff1: "35%", diff2: "40%" },
+      { cat: "百分數和分數互化", q: "小販買入雞蛋 200 隻，其中 8 隻變壞了，又打破了 17 隻，完好的雞蛋佔全部的百分之幾？", ans: "87.5%", sim: "82.5%", diff1: "12.5%", diff2: "175%" },
+
+      // 【6. 百分數和小數互化】
+      { cat: "百分數和小數互化", q: "把 1.23% 化為小數。", ans: "0.0123", sim: "0.123", diff1: "1.23", diff2: "123" },
+      { cat: "百分數和小數互化", q: "把 0.04% 化為小數。", ans: "0.0004", sim: "0.004", diff1: "0.04", diff2: "4" },
+      { cat: "百分數和小數互化", q: "把 0.0066 化為百分數。", ans: "0.66%", sim: "6.6%", diff1: "66%", diff2: "0.066%" },
+      { cat: "百分數和小數互化", q: "把 0.304 化為百分數。", ans: "30.4%", sim: "3.04%", diff1: "304%", diff2: "0.304%" },
+      { cat: "百分數和小數互化", q: "葉校長每月開支中，飲食佔薪金的 28.5%，以小數表示是多少？", ans: "0.285", sim: "2.85", diff1: "0.0285", diff2: "28.5" },
+      { cat: "百分數和小數互化", q: "把 1.8 化為百分數。", ans: "180%", sim: "18%", diff1: "1.8%", diff2: "0.018%" },
+      { cat: "百分數和小數互化", q: "把 60.5% 化為小數。", ans: "0.605", sim: "6.05", diff1: "0.0605", diff2: "60.5" },
+      { cat: "百分數和小數互化", q: `把 ${f(3, 4, 5)}% 化為小數。`, ans: "0.038", sim: "0.38", diff1: "3.8", diff2: "0.0345" },
+      { cat: "百分數和小數互化", q: "把 5.44 化為百分數。", ans: "544%", sim: "54.4%", diff1: "0.0544%", diff2: "5.44%" },
+      { cat: "百分數和小數互化", q: "把 903% 化為小數。", ans: "9.03", sim: "0.903", diff1: "90.3", diff2: "0.0903" },
+
+      // 【7. 容量和體積】
+      { cat: "容量和體積", q: "一個邊長為 20 cm 的正方體盒子，它的體積和容量分別是多少？", ans: "8000 cm³ / 8 L", sim: "8000 cm³ / 80 L", diff1: "400 cm³ / 0.4 L", diff2: "60 cm³ / 6 L" },
+      { cat: "容量和體積", q: "量杯中有 3 L 的水，最多可注滿多少個邊長 10 cm 的正方體容器？", ans: "3 個", sim: "30 個", diff1: "300 個", diff2: "1 個" },
+      { cat: "容量和體積", q: "長方體容器長 10 cm、闊 10 cm，盛載着 16 cm 深的水，水的體積是多少毫升？", ans: "1600 mL", sim: "160 mL", diff1: "16 mL", diff2: "36 mL" },
+      { cat: "容量和體積", q: "一個正方體容器邊長 30 cm，它的容量是多少？", ans: "27 L", sim: "2.7 L", diff1: "900 mL", diff2: "27000 L" },
+      { cat: "容量和體積", q: "水箱長 25 cm、闊 15 cm，盛水至 16 cm 深。水箱內有水多少升？", ans: "6 升", sim: "60 升", diff1: "600 升", diff2: "0.6 升" },
+      { cat: "容量和體積", q: "正方體容器邊長 5 cm，它的容量是多少 mL？1000 mL 的水最多可注滿多少個該容器？", ans: "125 mL，可注滿 8 個", sim: "125 mL，可注滿 80 個", diff1: "25 mL，可注滿 40 個", diff2: "15 mL，可注滿 8 個" },
+      { cat: "容量和體積", q: "長方體玻璃盒底面是邊長 0.3 m（30 cm）的正方形，高 50 cm，現有水深 20 cm。要再注入水多少升才到盒頂？", ans: "9 L", sim: "90 L", diff1: "27 L", diff2: "0.9 L" },
+      { cat: "容量和體積", q: "長方體魚缸長 20 cm、闊 11 cm。魚缸內有水 880 mL，水深是多少 cm？", ans: "4 cm", sim: "40 cm", diff1: "0.4 cm", diff2: "8 cm" },
+      { cat: "容量和體積", q: `邊長 6 cm 的正方體容器，水位高度是容器高度的 ${f('', 3, 4)}，容器內有水多少毫升？`, ans: "162 毫升", sim: "216 毫升", diff1: "18 毫升", diff2: "54 毫升" },
+      { cat: "容量和體積", q: "一個水池最多能盛載 2 立方米的物體，它的容量是多少升？", ans: "2000 升", sim: "200 升", diff1: "20 升", diff2: "2 升" },
+
+      // 【8. 不規則立體體積】
+      { cat: "不規則立體體積", q: "量杯原有 250 mL 水，放入 3 塊各為 50 cm³ 的磁石後，水位線會升高到哪個位置？", ans: "400 mL (0.4 L)", sim: "300 mL (0.3 L)", diff1: "150 mL (0.15 L)", diff2: "450 mL (0.45 L)" },
+      { cat: "不規則立體體積", q: "水箱長 25 cm、闊 15 cm、原水深 16 cm。放進一個立體模型後，水面上升至 20 cm，立體模型的體積是多少？", ans: "1500 cm³", sim: "150 cm³", diff1: "7500 cm³", diff2: "6000 cm³" },
+      { cat: "不規則立體體積", q: "長方體容器長 8 cm、闊 8 cm，裏面浸着一個邊長 4 cm 的正方體。取去正方體後，水位下降了多少 cm？", ans: "1 cm", sim: "0.5 cm", diff1: "4 cm", diff2: "64 cm" },
+      { cat: "不規則立體體積", q: "把一個邊長 2 cm 的正方體完全沉入長 8 cm、闊 5 cm 的長方體容器中，水位升高了多少 cm？", ans: "0.2 cm", sim: "2 cm", diff1: "0.8 cm", diff2: "8 cm" },
+      { cat: "不規則立體體積", q: "長方體容器長 25 cm、闊 10 cm、原水深 12 cm。把石頭完全沉入水中後，水位升高至 16 cm，石頭體積是多少？", ans: "1000 cm³", sim: "100 cm³", diff1: "4000 cm³", diff2: "3000 cm³" },
+      { cat: "不規則立體體積", q: "長方體容器長 10 cm、闊 8 cm，盛水並浸着 5 粒各 32 cm³ 的波子，水深 15 cm。取出 5 粒波子後，水深是多少？", ans: "13 cm", sim: "14.6 cm", diff1: "2 cm", diff2: "17 cm" },
+      { cat: "不規則立體體積", q: "溢水杯實驗：放入 1 個圓球排出 75 mL 水；改放入 2 個圓球和 1 個正方體共排出 200 mL 水。正方體的體積是多少？", ans: "50 cm³", sim: "75 cm³", diff1: "125 cm³", diff2: "150 cm³" },
+      { cat: "不規則立體體積", q: "把兩塊體積都是 440 cm³ 的石頭放進長 40 cm、闊 10 cm 的容器內，水位會上升多少 cm？", ans: "2.2 cm", sim: "1.1 cm", diff1: "22 cm", diff2: "16.2 cm" },
+      { cat: "不規則立體體積", q: "邊長 6 cm 的正方體容器內有 108 mL 水。放入一塊石塊後水位上升了 2 cm，石塊的體積是多少 cm³？", ans: "72 cm³", sim: "36 cm³", diff1: "180 cm³", diff2: "12 cm³" },
+      { cat: "不規則立體體積", q: "把 2 個相同玩具模型放入溢水杯，排出的水流進長 12 cm、闊 4 cm 的長方體盒內，水深 2 cm。每個模型體積是多少？", ans: "48 cm³", sim: "96 cm³", diff1: "24 cm³", diff2: "16 cm³" }
+    ];
+
+    // ==========================================
+    // 4. 狀態變數
+    // ==========================================
+    let currentRoomCode = null;
+    let studentId = null;
+    let studentName = "";
+    let studentScore = 0;
+    let roomQuestions = [];
+    let currentQIndex = 0;
+    let timerInterval = null;
+    let isLocked = false;
+
+    // 切換畫面函數
+    function showView(viewId) {
+      const views = [
+        "view-home",
+        "view-teacher-setup",
+        "view-teacher-room",
+        "view-student-join",
+        "view-student-wait",
+        "view-student-game",
+        "view-student-end"
+      ];
+      views.forEach(id => {
+        document.getElementById(id).classList.toggle("hidden", id !== viewId);
+      });
+    }
+
+    // 陣列洗牌函數
+    function shuffleArray(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    // 格式化秒數為 MM:SS
+    function formatTime(sec) {
+      const s = Math.max(0, Math.floor(sec));
+      const m = String(Math.floor(s / 60)).padStart(2, "0");
+      const r = String(s % 60).padStart(2, "0");
+      return `${m}:${r}`;
+    }
+
+    // ==========================================
+    // 5. 老師大螢幕端邏輯
+    // ==========================================
+    function enterTeacherSetup() {
+      const container = document.getElementById("topic-checkboxes");
+      container.innerHTML = "";
+      ALL_TOPICS.forEach((topic, idx) => {
+        const count = QUESTION_BANK.filter(q => q.cat === topic).length;
+        const div = document.createElement("label");
+        div.className = "topic-item selected";
+        div.innerHTML = `
+          <input type="checkbox" value="${topic}" checked onchange="this.parentElement.classList.toggle('selected', this.checked)">
+          <span>${topic} (${count}題)</span>
+        `;
+        container.appendChild(div);
+      });
+      showView("view-teacher-setup");
+    }
+
+    function toggleAllTopics(checked) {
+      document.querySelectorAll("#topic-checkboxes input").forEach(cb => {
+        cb.checked = checked;
+        cb.parentElement.classList.toggle("selected", checked);
+      });
+    }
+
+    function getSelectedTopics() {
+      const selected = [];
+      document.querySelectorAll("#topic-checkboxes input:checked").forEach(cb => {
+        selected.push(cb.value);
+      });
+      return selected;
+    }
+
+    function generateRoomQuestions(selectedTopics) {
+      const filtered = QUESTION_BANK.filter(q => selectedTopics.includes(q.cat));
+      return shuffleArray(filtered);
+    }
+
+    function createRoom() {
+      const selectedTopics = getSelectedTopics();
+      if (selectedTopics.length === 0) {
+        alert("請最少勾選一個數學課題！");
+        return;
+      }
+
+      // 產生 4 位數房間號碼
+      currentRoomCode = String(Math.floor(1000 + Math.random() * 9000));
+      roomQuestions = generateRoomQuestions(selectedTopics);
+
+      const roomRef = db.ref(`rooms/${currentRoomCode}`);
+      roomRef.set({
+        status: "waiting",
+        createdAt: Date.now(),
+        duration: 300, // 5 分鐘 = 300 秒
+        selectedTopics: selectedTopics,
+        questions: roomQuestions
+      }).then(() => {
+        document.getElementById("t-room-code").textContent = currentRoomCode;
+        document.getElementById("t-selected-topics").textContent = selectedTopics.join("、");
+        document.getElementById("t-question-count").textContent = roomQuestions.length;
+        document.getElementById("t-timer").textContent = "05:00";
+        document.getElementById("t-timer").classList.remove("urgent");
+        document.getElementById("btn-start-game").disabled = false;
+
+        listenToRoomTeacher(currentRoomCode);
+        showView("view-teacher-room");
+      }).catch(err => {
+        alert("連線 Firebase 失敗，請檢查網絡或資料庫權限：" + err.message);
+      });
+    }
+
+    function listenToRoomTeacher(code) {
+      const playersRef = db.ref(`rooms/${code}/players`);
+      playersRef.on("value", snapshot => {
+        const data = snapshot.val() || {};
+        const players = Object.values(data);
+
+        // 更新連線學生名單
+        document.getElementById("t-student-count").textContent = players.length;
+        const listEl = document.getElementById("t-student-list");
+        if (players.length === 0) {
+          listEl.innerHTML = `<p style="color:#9CA3AF;">等待學生使用 iPad 輸入房間號碼加入...</p>`;
+        } else {
+          listEl.innerHTML = players.map(p => `<span class="student-tag">👤 ${escapeHtml(p.name)}</span>`).join("");
+        }
+
+        // 更新即時動態排行榜（依分數高低排列）
+        const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+        const boardEl = document.getElementById("t-leaderboard");
+        if (sorted.length === 0) {
+          boardEl.innerHTML = `<li style="color:#9CA3AF; text-align:center; padding:24px;">暫無分數紀錄</li>`;
+        } else {
+          boardEl.innerHTML = sorted.map((p, idx) => {
+            const rankClass = idx === 0 ? "rank-1" : idx === 1 ? "rank-2" : idx === 2 ? "rank-3" : "";
+            const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : (idx + 1);
+            return `
+              <li class="leaderboard-item ${rankClass}">
+                <div style="display:flex; align-items:center;">
+                  <span class="rank-badge">${medal}</span>
+                  <span>${escapeHtml(p.name)}</span>
+                </div>
+                <span class="score-pill">${p.score || 0} 分</span>
+              </li>
+            `;
+          }).join("");
+        }
+      });
+    }
+
+    function startGame() {
+      if (!currentRoomCode) return;
+      const startTime = Date.now();
+      db.ref(`rooms/${currentRoomCode}`).update({
+        status: "playing",
+        startTime: startTime
+      });
+      document.getElementById("btn-start-game").disabled = true;
+      startTeacherTimer(startTime, 300);
+    }
+
+    function restartGame() {
+      if (!currentRoomCode) return;
+      if (!confirm("確定要重新開始比賽嗎？這將會將所有學生分數歸零，並重新隨機排列題目順序。")) return;
+
+      clearInterval(timerInterval);
+      const selectedTopics = document.getElementById("t-selected-topics").textContent.split("、");
+      roomQuestions = generateRoomQuestions(selectedTopics);
+
+      // 將所有已連線學生的分數歸零
+      db.ref(`rooms/${currentRoomCode}/players`).once("value", snap => {
+        const players = snap.val() || {};
+        Object.keys(players).forEach(pid => {
+          players[pid].score = 0;
+        });
+        db.ref(`rooms/${currentRoomCode}`).update({
+          status: "waiting",
+          startTime: null,
+          questions: roomQuestions,
+          players: players
+        });
+      });
+
+      document.getElementById("t-timer").textContent = "05:00";
+      document.getElementById("t-timer").classList.remove("urgent");
+      document.getElementById("btn-start-game").disabled = false;
+    }
+
+    function changeTopicsModal() {
+      clearInterval(timerInterval);
+      if (currentRoomCode) {
+        db.ref(`rooms/${currentRoomCode}/players`).off();
+      }
+      enterTeacherSetup();
+    }
+
+    function startTeacherTimer(startTime, durationSec) {
+      clearInterval(timerInterval);
+      const timerEl = document.getElementById("t-timer");
+      timerInterval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const remain = Math.max(0, durationSec - elapsed);
+        timerEl.textContent = formatTime(remain);
+        if (remain <= 30) {
+          timerEl.classList.add("urgent");
+        }
+        if (remain <= 0) {
+          clearInterval(timerInterval);
+          db.ref(`rooms/${currentRoomCode}`).update({ status: "ended" });
+        }
+      }, 250);
+    }
+
+    // ==========================================
+    // 6. 學生 iPad 端邏輯
+    // ==========================================
+    function enterStudentJoin() {
+      showView("view-student-join");
+    }
+
+    function joinRoom() {
+      const code = document.getElementById("s-input-code").value.trim();
+      const name = document.getElementById("s-input-name").value.trim();
+
+      if (code.length !== 4) {
+        alert("請輸入 4 位數房間號碼！");
+        return;
+      }
+      if (!name) {
+        alert("請輸入你的姓名或學號！");
+        return;
+      }
+
+      const roomRef = db.ref(`rooms/${code}`);
+      roomRef.once("value", snapshot => {
+        if (!snapshot.exists()) {
+          alert("找不到此房間號碼，請向老師確認大螢幕上的 4 位數房號！");
+          return;
+        }
+
+        currentRoomCode = code;
+        studentName = name;
+        studentScore = 0;
+        studentId = "stu_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+
+        // 註冊學生資料到 Firebase
+        db.ref(`rooms/${code}/players/${studentId}`).set({
+          name: studentName,
+          score: 0,
+          joinedAt: Date.now()
+        });
+
+        document.getElementById("s-wait-name").textContent = studentName;
+        document.getElementById("s-wait-code").textContent = currentRoomCode;
+        document.getElementById("s-game-name").textContent = studentName;
+
+        listenToRoomStudent(code);
+      });
+    }
+
+    function listenToRoomStudent(code) {
+      const roomRef = db.ref(`rooms/${code}`);
+      roomRef.on("value", snapshot => {
+        const room = snapshot.val();
+        if (!room) return;
+
+        // 同步房間題目順序（確保同房所有學生題目順序完全相同）
+        if (room.questions) {
+          roomQuestions = room.questions;
+        }
+
+        if (room.status === "waiting") {
+          clearInterval(timerInterval);
+          studentScore = 0;
+          currentQIndex = 0;
+          document.getElementById("s-game-score").textContent = "0";
+          showView("view-student-wait");
+        } else if (room.status === "playing") {
+          // 若剛進入或從等待狀態切換為比賽中
+          const isAlreadyInGame = !document.getElementById("view-student-game").classList.contains("hidden");
+          const isAlreadyEnded = !document.getElementById("view-student-end").classList.contains("hidden");
+          if (!isAlreadyInGame && !isAlreadyEnded) {
+            currentQIndex = 0;
+            renderStudentQuestion();
+            showView("view-student-game");
+            startStudentTimer(room.startTime, room.duration || 300);
+          }
+        } else if (room.status === "ended") {
+          clearInterval(timerInterval);
+          showStudentEnd("⏰ 5 分鐘時間到！");
+        }
+      });
+    }
+
+    function startStudentTimer(startTime, durationSec) {
+      clearInterval(timerInterval);
+      const timerEl = document.getElementById("s-game-timer");
+      timerInterval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const remain = Math.max(0, durationSec - elapsed);
+        timerEl.textContent = formatTime(remain);
+        if (remain <= 0) {
+          clearInterval(timerInterval);
+          showStudentEnd("⏰ 5 分鐘時間到！");
+        }
+      }, 250);
+    }
+
+    function renderStudentQuestion() {
+      if (currentQIndex >= roomQuestions.length) {
+        showStudentEnd("🏆 恭喜你完成所有題目！");
+        return;
+      }
+
+      isLocked = false;
+      const fb = document.getElementById("s-feedback");
+      fb.className = "feedback-banner hidden";
+
+      const qObj = roomQuestions[currentQIndex];
+      document.getElementById("s-q-index").textContent = currentQIndex + 1;
+      document.getElementById("s-q-total").textContent = roomQuestions.length;
+      document.getElementById("s-q-cat").textContent = qObj.cat;
+      document.getElementById("s-q-text").innerHTML = qObj.q;
+
+      // 組合 4 個選項（1個正確、1個相似、2個完全不同）並隨機排列按鈕位置
+      const options = shuffleArray([
+        { html: qObj.ans, isCorrect: true },
+        { html: qObj.sim, isCorrect: false },
+        { html: qObj.diff1, isCorrect: false },
+        { html: qObj.diff2, isCorrect: false }
+      ]);
+
+      const grid = document.getElementById("s-options-grid");
+      grid.innerHTML = "";
+      options.forEach(opt => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.innerHTML = opt.html;
+        btn.onclick = () => handleAnswer(btn, opt.isCorrect);
+        grid.appendChild(btn);
+      });
+    }
+
+    function handleAnswer(clickedBtn, isCorrect) {
+      if (isLocked) return;
+      isLocked = true;
+
+      const allBtns = document.querySelectorAll(".option-btn");
+      allBtns.forEach(b => b.disabled = true);
+
+      const fb = document.getElementById("s-feedback");
+
+      if (isCorrect) {
+        clickedBtn.classList.add("correct");
+        studentScore += 10;
+        document.getElementById("s-game-score").textContent = studentScore;
+
+        // 即時寫入分數至 Firebase
+        db.ref(`rooms/${currentRoomCode}/players/${studentId}/score`).set(studentScore);
+
+        fb.textContent = "✅ 答對了！ +10 分";
+        fb.className = "feedback-banner feedback-correct";
+
+        setTimeout(() => {
+          currentQIndex++;
+          renderStudentQuestion();
+        }, 350);
+      } else {
+        clickedBtn.classList.add("wrong");
+        // 答錯不扣分，但需等待 1 秒才能作答下一題
+        fb.textContent = "❌ 答錯了！不扣分，請等待 1 秒進入下一題...";
+        fb.className = "feedback-banner feedback-penalty";
+
+        setTimeout(() => {
+          currentQIndex++;
+          renderStudentQuestion();
+        }, 1000);
+      }
+    }
+
+    function showStudentEnd(titleText) {
+      document.getElementById("s-end-title").textContent = titleText;
+      document.getElementById("s-end-score").textContent = studentScore;
+      showView("view-student-end");
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[s]));
+    }
+  </script>
+</body>
+</html>
